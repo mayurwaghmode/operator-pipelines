@@ -7,7 +7,7 @@ spec:
   params:
     - name: pipeline_image
     - name: base_image
-      default: quay.io/opdev/preflight:ppc64le
+      default: quay.io/mayurwaghmode111/preflight@sha256:6a67328262e54a5cc43ad4cdd17ac587b5b3441357cde66e3ef876d04a57141f
       description: Preflight image used
     - name: package_name
       description: Package name for the Operator under test
