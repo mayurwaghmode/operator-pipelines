@@ -41,6 +41,8 @@ spec:
       secret:
         secretName: "$(params.pyxis_ssl_secret_name)"
         optional: true
+  workspaces:
+    - name: source
   steps:
     - name: get-pipeline-logs
       image: registry.redhat.io/openshift-pipelines/pipelines-cli-tkn-rhel8@sha256:cc8bbdb079578605a66447529d7de76f32882dc2ada571e39ff18e483cdbdf49
@@ -50,7 +52,10 @@ spec:
 
         echo "Getting pipeline logs"
 
-        tkn pipelinerun logs "$(params.pipeline_name)" > pipeline.logs
+        tkn pipelinerun logs "$(params.pipeline_name)" > $(workspaces.source.path)/pipeline.logs
+
+        ls -la $(workspaces.source.path)
+        echo "Ending initial task"
 
     - name: upload-pipeline-logs
       image: "$(params.pipeline_image)"
@@ -80,7 +85,7 @@ spec:
           --operator-package-name "$(params.package_name)" \
           --certification-hash "$(params.md5sum)" \
           --pyxis-url "$(params.pyxis_url)" \
-          --path pipeline.logs \
+          --path $(workspaces.source.path)/pipeline.logs \
           --type pipeline-logs \
           --output pipeline-logs-artifact.json \
           --verbose
