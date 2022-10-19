@@ -2,12 +2,7 @@
 name: Build and Push Multi-arch Image
 
 on:  # yamllint disable-line rule:truthy
-  workflow_run:
-    workflows:
-      - validation
-    types:
-      - completed
-  workflow_dispatch:
+  push:
 
 env:
   IMAGE_TAG: multi-arch
