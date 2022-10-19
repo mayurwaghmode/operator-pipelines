@@ -8,7 +8,7 @@ env:
   IMAGE_TAG: multi-arch
   IMAGE_NAME: operator-pipelines-images
   IMAGE_REGISTRY: quay.io
-  IMAGE_NAMESPACE: redhat-isv
+  IMAGE_NAMESPACE: mayurwaghmode111
 
 jobs:
   build-multiarch-images:
