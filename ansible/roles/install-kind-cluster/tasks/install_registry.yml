@@ -19,15 +19,47 @@
         - absent
         - directory
 
-    - name: "Generate certificate in to '{{ registry_cert_dir }}'"
-      ansible.builtin.command: 'openssl req -newkey rsa:4096 -nodes -sha256 -keyout {{ registry_cert_dir }}/domain.key -x509 -days 365 -subj ''/CN=${reg_name}'' -addext "subjectAltName=DNS:{{ registry_hostname }},DNS:localhost,DNS:host.containers.internal" -out {{ registry_cert_dir }}/domain.crt -batch'
+    - name: "Reset 'subject_alt_name' and set 'ikc_subject_alt_name_values'"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name: ""
+        ikc_subject_alt_name_values:
+          - "{{ registry_hostname }}"
+          - "localhost"
+          - "host.containers.internal"
+
+    - name: "Add IPv4 if exists"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name_values: "{{ ikc_subject_alt_name_values | default([]) + [ansible_default_ipv4.address + '.sslip.io'] }}"
+      when: ansible_default_ipv4.address is defined and ansible_default_ipv4.address | length > 0
+
+    - name: "Add IPv4 base single level DNS if IPv4 exists"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name_values: "{{ ikc_subject_alt_name_values | default([]) + [ansible_default_ipv4.address | replace('.', '-') + '.sslip.io'] }}"
+      when: ansible_default_ipv4.address is defined and ansible_default_ipv4.address | length > 0
+
+    - name: "Add IPv6 if exists"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name_values: "{{ ikc_subject_alt_name_values | default([]) + [ansible_default_ipv6.address | replace(':', '-') + '.sslip.io'] }}"
+      when: ansible_default_ipv6.address is defined and ansible_default_ipv6.address | length > 0
+
+    - name: "Prepend 'DNS:'"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name_list: "{{ ikc_subject_alt_name_list | default([]) + ['DNS:' + item] }}"
+      loop: "{{ ikc_subject_alt_name_values }}"
+
+    - name: "Join comma separated from 'ikc_subject_alt_name_list'"
+      ansible.builtin.set_fact:
+        ikc_subject_alt_name: "{{ ikc_subject_alt_name_list | join(',') }}"
+
+    - name: "Generate certificate in to '{{ registry_cert_dir }}' with subject_alt_name='{{ ikc_subject_alt_name }}'"
+      ansible.builtin.command: 'openssl req -newkey rsa:4096 -nodes -sha256 -keyout {{ registry_cert_dir }}/domain.key -x509 -days 365 -subj ''/CN=${reg_name}'' -addext "subjectAltName={{ ikc_subject_alt_name }}" -out {{ registry_cert_dir }}/domain.crt -batch'
       failed_when: false
       changed_when: true
 
     - name: "Setting registry arguments in case of ssl support"
       ansible.builtin.set_fact:
         ikc_registry_args: "-v {{ registry_cert_dir }}:/certs:Z -e REGISTRY_HTTP_ADDR=0.0.0.0:5000 -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key"
-      when: registry_ssl|bool
+      when: registry_ssl | bool
 
     - name: "Start registry '{{ registry_name }}' at port '{{ registry_port }}'"
       ansible.builtin.command: "{{ container_tool }} run -d --restart=always --name {{ registry_name }} {{ ikc_registry_args | default('') }} -p {{ registry_port }}:5000 registry:2"
@@ -63,5 +95,17 @@
       kubernetes.core.k8s:
         state: present
         src: "{{ kind_config_map_registry_path }}"
+
+    - name: "Create configMap '{{ registry_ca_cert_name }}' in namespace '{{ registry_ca_cert_namespace }}' from file '{{ registry_cert_dir }}/domain.crt'"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ registry_ca_cert_name }}"
+            namespace: "{{ registry_ca_cert_namespace }}"
+          data:
+            registry-ca.crt: "{{ lookup('file', registry_cert_dir + '/domain.crt') }}"
   tags:
     - install
