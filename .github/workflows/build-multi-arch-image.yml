@@ -15,7 +15,7 @@ jobs:
     name: Build and push multi-architecture image
     strategy:
       matrix:
-        architecture: [amd64, ppc64le]
+        architecture: [amd64, ppc64le, s390x]
         platform: [linux]
     runs-on: ubuntu-20.04
     steps:
