@@ -44,7 +44,7 @@ RUN dnf update -y && \
 COPY operator-pipeline-images/config/krb5.conf /etc/krb5.conf
 
 # Install oc and opm CLI
-RUN curl -LO https://github.com/operator-framework/operator-registry/releases/download/v1.19.5/linux-${ARCH}-opm && \
+RUN curl -LO https://github.com/operator-framework/operator-registry/releases/download/v1.26.2/linux-${ARCH}-opm && \
     chmod +x linux-${ARCH}-opm && \
     mv linux-${ARCH}-opm /usr/local/bin/opm && \
     curl -LO https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/latest-4.10/openshift-client-linux.tar.gz && \
